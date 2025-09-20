@@ -1,4 +1,5 @@
-//e gstreamer::prelude::*;
+use gstreamer::prelude::*;
+use std::time::Duration;
 
 // Import sibling through super
 use super::MediaInfo;
@@ -17,25 +18,130 @@ pub fn validate_pipeline_string(pipeline_string: &str) -> Result<(), String> {
     // Try to parse the pipeline to catch syntax errors
     match gstreamer::parse_launch(pipeline_string) {
         Ok(_) => Ok(()),
-        Err(e) => Err(format!("Invalid pipeline syntax: {}", e)),
+        Err(e) => Err(format!("Invalid pipeline syntax: {e}")),
     }
 }
 
 pub fn get_media_info(url: &str) -> anyhow::Result<MediaInfo> {
-    // Create a discoverer pipeline to get media info
-    let pipeline_string = format!("souphttpsrc location={} ! decodebin ! fakesink", url);
+    use gstreamer::MessageView;
 
-    let _pipeline = gstreamer::parse_launch(&pipeline_string)?;
+    // Create a discovery pipeline - we'll probe the media without fully decoding
+    let pipeline_string = format!(
+        "souphttpsrc location={} ! typefind ! identity signal-handoffs=false ! fakesink sync=false",
+        url
+    );
 
-    // This is a simplified version - in a real implementation,
-    // you'd use GStreamer's discoverer API
-    Ok(MediaInfo {
+    let pipeline = gstreamer::parse_launch(&pipeline_string)?
+        .downcast::<gstreamer::Pipeline>()
+        .map_err(|_| anyhow::anyhow!("Failed to create discovery pipeline"))?;
+
+    // Set to PAUSED state to trigger caps negotiation without playing
+    pipeline.set_state(gstreamer::State::Paused)?;
+
+    // Get the bus to listen for messages
+    let bus = pipeline.bus().expect("Pipeline without bus");
+
+    let mut media_info = MediaInfo {
         duration: None,
         width: None,
         height: None,
         bitrate: None,
         format: "unknown".to_string(),
-    })
+    };
+
+    // Wait for state change to PAUSED or error (with timeout)
+    let timeout = Duration::from_secs(10);
+    let start_time = std::time::Instant::now();
+
+    while start_time.elapsed() < timeout {
+        if let Some(msg) = bus.timed_pop(gstreamer::ClockTime::from_mseconds(100)) {
+            match msg.view() {
+                MessageView::Error(err) => {
+                    pipeline.set_state(gstreamer::State::Null)?;
+                    return Err(anyhow::anyhow!("Pipeline error: {}", err.error()));
+                }
+                MessageView::StateChanged(state_changed) => {
+                    if state_changed.src().map(|s| s == &pipeline).unwrap_or(false)
+                        && state_changed.current() == gstreamer::State::Paused
+                    {
+                        // Pipeline is now paused, we can query information
+                        break;
+                    }
+                }
+                MessageView::AsyncDone(_) => {
+                    // Pipeline has finished transitioning to PAUSED
+                    break;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Try to get duration
+    if let Some(duration) = pipeline.query_duration::<gstreamer::ClockTime>() {
+        media_info.duration = Some(duration.seconds());
+    }
+
+    // Try to get format information from the typefind element
+    if let Some(typefind) = pipeline.by_name("typefind0") {
+        if let Some(caps) = typefind
+            .static_pad("src")
+            .and_then(|pad| pad.current_caps())
+        {
+            if let Some(structure) = caps.structure(0) {
+                media_info.format = structure.name().to_string();
+
+                // Try to get video dimensions if it's a video format
+                if let Ok(width) = structure.get::<i32>("width") {
+                    media_info.width = Some(width as u32);
+                }
+                if let Ok(height) = structure.get::<i32>("height") {
+                    media_info.height = Some(height as u32);
+                }
+            }
+        }
+    }
+
+    // Alternative: try to find any video pad in the pipeline and get its caps
+    if media_info.width.is_none() || media_info.height.is_none() {
+        for pad_result in pipeline.iterate_pads() {
+            if let Ok(pad) = pad_result {
+                if let Some(caps) = pad.current_caps() {
+                    for i in 0..caps.size() {
+                        if let Some(structure) = caps.structure(i) {
+                            if structure.name().starts_with("video/") {
+                                if let Ok(width) = structure.get::<i32>("width") {
+                                    media_info.width = Some(width as u32);
+                                }
+                                if let Ok(height) = structure.get::<i32>("height") {
+                                    media_info.height = Some(height as u32);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Clean up
+    pipeline.set_state(gstreamer::State::Null)?;
+
+    // If we still don't have format info, try to infer from URL
+    if media_info.format == "unknown" {
+        if url.contains(".mp4") {
+            media_info.format = "video/mp4".to_string();
+        } else if url.contains(".webm") {
+            media_info.format = "video/webm".to_string();
+        } else if url.contains(".mp3") {
+            media_info.format = "audio/mpeg".to_string();
+        } else if url.contains(".ogg") {
+            media_info.format = "audio/ogg".to_string();
+        }
+    }
+
+    Ok(media_info)
 }
 
 // Utility function to create common pipeline patterns

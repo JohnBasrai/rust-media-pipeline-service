@@ -1,2 +1,240 @@
-# rust-media-pipeline-service
-REST API service for media processing using GStreamer and Rust
+# Media Pipeline Service
+
+A REST API service for media processing using GStreamer and Rust, demonstrating modern Rust architecture patterns and GStreamer integration.
+
+## Features
+
+- **Media Format Conversion** - Convert videos between WebM, MP4, and AVI formats
+- **Thumbnail Generation** - Extract thumbnails from video content at specified timestamps
+- **HLS Streaming** - Create HTTP Live Streaming pipelines for real-time video delivery
+- **Pipeline Management** - Create, monitor, and control custom GStreamer pipelines
+- **Media Analysis** - Analyze media files to extract format, resolution, and metadata
+- **Built-in Samples** - Pre-configured sample media for testing and demonstration
+
+## Architecture
+
+This project implements the **Explicit Module Boundary Pattern (EMBP)** for clean, maintainable Rust code:
+
+```
+src/
+├── handlers/           # HTTP endpoint handlers
+│   ├── mod.rs         # Gateway controlling public handler API
+│   ├── media.rs       # Media processing endpoints
+│   ├── pipeline.rs    # Pipeline CRUD operations
+│   └── samples.rs     # Sample data and health checks
+├── models/            # Data structures and DTOs
+│   ├── mod.rs         # Gateway controlling public model API
+│   ├── pipeline.rs    # Pipeline state management
+│   ├── requests.rs    # Request DTOs
+│   └── responses.rs   # Response DTOs
+├── services/          # Business logic and GStreamer integration
+│   ├── mod.rs         # Gateway controlling public service API
+│   ├── pipeline.rs    # GStreamer pipeline service
+│   └── validation.rs  # Pipeline validation and utilities
+└── main.rs           # Application entry point and routing
+```
+
+## Prerequisites
+
+- **Rust** (edition 2021 or later)
+- **GStreamer** development libraries
+  - Ubuntu/Debian: `sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev`
+  - macOS: `brew install gstreamer gst-plugins-base`
+  - Windows: Install GStreamer from [gstreamer.freedesktop.org](https://gstreamer.freedesktop.org)
+
+## Quick Start
+
+1. **Clone and build:**
+   ```bash
+   git clone <repository-url>
+   cd media-pipeline-service
+   cargo build
+   ```
+
+2. **Run the service:**
+   ```bash
+   # Run with default settings (localhost:8080)
+   cargo run
+   
+   # Run on custom port
+   cargo run -- --port 3000
+   
+   # Run on specific host and port
+   cargo run -- --host 127.0.0.1 --port 8081
+   
+   # See all CLI options
+   cargo run -- --help
+   ```
+
+3. **Test the service:**
+   ```bash
+   curl http://localhost:8080/health
+   ```
+
+## API Endpoints
+
+### Health and Information
+- `GET /health` - Service health check and GStreamer version info
+- `GET /samples` - List available sample media for testing
+
+### Media Processing
+- `POST /convert` - Convert media between formats
+- `POST /thumbnail` - Generate thumbnail from video
+- `POST /stream` - Create HLS streaming pipeline
+- `GET /analyze/{url}` - Analyze media file metadata
+
+### Pipeline Management
+- `GET /pipelines` - List all active pipelines
+- `POST /pipelines` - Create custom GStreamer pipeline
+- `GET /pipelines/{id}` - Get specific pipeline status
+- `DELETE /pipelines/{id}` - Stop pipeline execution
+
+## Usage Examples
+
+### Convert Video Format
+```bash
+curl -X POST http://localhost:8080/convert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "output_format": "webm"
+  }'
+```
+
+### Generate Thumbnail
+```bash
+curl -X POST http://localhost:8080/thumbnail \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "timestamp": "00:01:30",
+    "width": 640,
+    "height": 480
+  }'
+```
+
+### Create HLS Stream
+```bash
+curl -X POST http://localhost:8080/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "stream_type": "hls"
+  }'
+```
+
+### Analyze Media File
+```bash
+# URL-encode the media URL for the path parameter
+curl http://localhost:8080/analyze/https%3A//example.com/video.mp4
+```
+
+### Create Custom Pipeline
+```bash
+curl -X POST http://localhost:8080/pipelines \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Audio extraction pipeline",
+    "pipeline": "souphttpsrc location=https://example.com/video.mp4 ! decodebin ! audioconvert ! vorbisenc ! oggmux ! filesink location=output.ogg"
+  }'
+```
+
+### List Sample Media
+```bash
+curl http://localhost:8080/samples
+```
+
+## GStreamer Integration
+
+The service demonstrates several key GStreamer concepts:
+
+**Pipeline Validation**: All pipeline strings are validated before execution using `gstreamer::parse_launch()`.
+
+**Modular Pipeline Construction**: Common pipeline patterns are built programmatically for different use cases (conversion, thumbnails, streaming).
+
+**Error Handling**: GStreamer errors are properly captured and returned as structured API responses.
+
+**State Management**: Pipeline states (Created, Playing, Paused, Stopped, Error) are tracked and exposed through the API.
+
+## Sample Pipelines
+
+The service includes pre-built pipeline generators for common operations:
+
+**Video Conversion:**
+```
+souphttpsrc location={url} ! decodebin ! videoconvert ! x264enc ! mp4mux ! filesink location={output}
+```
+
+**Thumbnail Generation:**
+```
+souphttpsrc location={url} ! decodebin ! videoconvert ! videoscale ! video/x-raw,width={w},height={h} ! pngenc ! filesink location={output}
+```
+
+**HLS Streaming:**
+```
+souphttpsrc location={url} ! decodebin ! videoconvert ! x264enc bitrate=1000 ! mpegtsmux ! hlssink location={dir}/segment_%05d.ts playlist-location={dir}/playlist.m3u8
+```
+
+## Error Handling
+
+The API provides structured error responses with detailed information:
+
+```json
+{
+  "error": "Invalid pipeline configuration",
+  "details": "Pipeline must contain at least one element connection (!)"
+}
+```
+
+Common error scenarios include:
+- Invalid GStreamer pipeline syntax
+- Unsupported media formats
+- Network accessibility issues with source URLs
+- Missing GStreamer plugins
+
+## Development
+
+**Run with logging:**
+```bash
+RUST_LOG=info cargo run
+
+# Run on custom port with logging
+RUST_LOG=debug cargo run -- --port 3000
+```
+
+**Run tests:**
+```bash
+cargo test
+```
+
+**Check code quality:**
+```bash
+cargo clippy
+cargo fmt
+```
+
+## Technology Stack
+
+- **Rust** - Systems programming language for performance and safety
+- **Axum** - Modern async web framework for Rust
+- **GStreamer** - Multimedia framework for pipeline-based media processing
+- **Tokio** - Async runtime for concurrent request handling
+- **Serde** - Serialization framework for JSON API responses
+- **Tracing** - Structured logging and observability
+
+## Future Enhancements
+
+- WebSocket support for real-time pipeline status updates
+- File upload endpoints for local media processing
+- Advanced audio processing pipelines
+- Integration with cloud storage services
+- Docker containerization with GStreamer dependencies
+- Prometheus metrics for pipeline performance monitoring
+
+## License
+
+This project is intended as a demonstration of Rust and GStreamer integration patterns.
+
+---
+
+**Note**: This service is designed as a portfolio demonstration of GStreamer and Rust capabilities. For production use, additional security, authentication, and resource management features would be required.
