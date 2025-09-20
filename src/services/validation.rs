@@ -186,3 +186,138 @@ pub fn create_hls_stream_pipeline(source_url: &str, output_dir: &str) -> String 
         source_url, output_dir, output_dir
     )
 }
+
+#[cfg(test)]
+mod tests {
+    // ---
+
+    use super::*;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    fn ensure_gstreamer_init() {
+        INIT.call_once(|| {
+            gstreamer::init().expect("Failed to initialize GStreamer for tests");
+        });
+    }
+
+    #[test]
+    fn test_validate_pipeline_string_valid_cases() {
+        // ---
+        ensure_gstreamer_init();
+
+        // Basic valid pipeline
+        assert!(validate_pipeline_string("videotestsrc ! autovideosink").is_ok());
+
+        // Multiple elements
+        assert!(validate_pipeline_string("videotestsrc ! videoconvert ! autovideosink").is_ok());
+
+        // With properties
+        assert!(validate_pipeline_string("videotestsrc pattern=ball ! autovideosink").is_ok());
+
+        // Audio pipeline
+        assert!(validate_pipeline_string("audiotestsrc ! autoaudiosink").is_ok());
+    }
+
+    #[test]
+    fn test_validate_pipeline_string_invalid_cases() {
+        // ---
+        ensure_gstreamer_init();
+
+        // Empty string
+        let result = validate_pipeline_string("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+
+        // Whitespace only
+        let result = validate_pipeline_string("   ");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+
+        // No connections (missing !)
+        let result = validate_pipeline_string("videotestsrc autovideosink");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection"));
+
+        // Single element with no connection
+        let result = validate_pipeline_string("videotestsrc");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection"));
+    }
+
+    #[test]
+    fn test_create_conversion_pipeline_supported_formats() {
+        // ---
+        let source = "https://example.com/video.mp4";
+        let output = "output.webm";
+
+        // WebM format
+        let result = create_conversion_pipeline(source, "webm", output);
+        assert!(result.is_ok());
+        let pipeline = result.unwrap();
+        assert!(pipeline.contains("vp8enc"));
+        assert!(pipeline.contains("webmmux"));
+
+        // MP4 format
+        let result = create_conversion_pipeline(source, "mp4", "output.mp4");
+        assert!(result.is_ok());
+        let pipeline = result.unwrap();
+        assert!(pipeline.contains("x264enc"));
+        assert!(pipeline.contains("mp4mux"));
+
+        // AVI format
+        let result = create_conversion_pipeline(source, "avi", "output.avi");
+        assert!(result.is_ok());
+        let pipeline = result.unwrap();
+        assert!(pipeline.contains("x264enc"));
+        assert!(pipeline.contains("avimux"));
+    }
+
+    #[test]
+    fn test_create_conversion_pipeline_unsupported_format() {
+        // ---
+        let result = create_conversion_pipeline(
+            "https://example.com/video.mp4",
+            "unsupported",
+            "output.xyz",
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unsupported output format"));
+    }
+
+    #[test]
+    fn test_create_thumbnail_pipeline() {
+        // ---
+        let pipeline = create_thumbnail_pipeline(
+            "https://example.com/video.mp4",
+            "thumb.png",
+            640,
+            480,
+            "00:01:30",
+        );
+
+        assert!(pipeline.contains("souphttpsrc"));
+        assert!(pipeline.contains("decodebin"));
+        assert!(pipeline.contains("videoconvert"));
+        assert!(pipeline.contains("videoscale"));
+        assert!(pipeline.contains("width=640"));
+        assert!(pipeline.contains("height=480"));
+        assert!(pipeline.contains("pngenc"));
+        assert!(pipeline.contains("thumb.png"));
+    }
+
+    #[test]
+    fn test_create_hls_stream_pipeline() {
+        // ---
+        let pipeline = create_hls_stream_pipeline("https://example.com/video.mp4", "/output/dir");
+
+        assert!(pipeline.contains("souphttpsrc"));
+        assert!(pipeline.contains("decodebin"));
+        assert!(pipeline.contains("x264enc bitrate=1000"));
+        assert!(pipeline.contains("mpegtsmux"));
+        assert!(pipeline.contains("hlssink"));
+        assert!(pipeline.contains("/output/dir/segment_%05d.ts"));
+        assert!(pipeline.contains("/output/dir/playlist.m3u8"));
+    }
+}
