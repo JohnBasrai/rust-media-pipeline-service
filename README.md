@@ -1,6 +1,6 @@
 # Media Pipeline Service
 
-A REST API service for media processing using GStreamer and Rust, demonstrating modern Rust architecture patterns and GStreamer integration.
+A REST API service for media processing using GStreamer and Rust, demonstrating modern Rust architecture patterns and professional development practices.
 
 ## Features
 
@@ -10,6 +10,8 @@ A REST API service for media processing using GStreamer and Rust, demonstrating 
 - **Pipeline Management** - Create, monitor, and control custom GStreamer pipelines
 - **Media Analysis** - Analyze media files to extract format, resolution, and metadata
 - **Built-in Samples** - Pre-configured sample media for testing and demonstration
+- **Professional CLI** - Command-line interface with smart colorization and flexible configuration
+- **Integration Testing** - Comprehensive HTTP test suite with clean output management
 
 ## Architecture
 
@@ -29,9 +31,10 @@ src/
 │   └── responses.rs   # Response DTOs
 ├── services/          # Business logic and GStreamer integration
 │   ├── mod.rs         # Gateway controlling public service API
-│   ├── pipeline.rs    # GStreamer pipeline service
 │   └── validation.rs  # Pipeline validation and utilities
-└── main.rs           # Application entry point and routing
+├── main.rs           # Application entry point and routing
+└── tests/            # Integration test suite
+    └── integration_test.rs  # HTTP API testing
 ```
 
 ## Prerequisites
@@ -62,14 +65,43 @@ src/
    # Run on specific host and port
    cargo run -- --host 127.0.0.1 --port 8081
    
+   # Control log colorization
+   cargo run -- --color always    # Force colors
+   cargo run -- --color never     # No colors
+   cargo run -- --color auto      # Auto-detect (default)
+   
    # See all CLI options
    cargo run -- --help
    ```
 
 3. **Test the service:**
    ```bash
+   # Check health
    curl http://localhost:8080/health
+   
+   # Run integration tests
+   cargo test
    ```
+
+## CLI Options
+
+The service includes a professional command-line interface:
+
+```bash
+Usage: media-pipeline-service [OPTIONS]
+
+Options:
+  -p, --port <PORT>        Port to bind the server to [default: 8080]
+      --host <HOST>        Host address to bind the server to [default: 0.0.0.0]
+      --color <WHEN>       Coloring [default: auto] [possible values: auto, always, never]
+  -h, --help               Print help
+  -V, --version            Print version
+```
+
+**Smart colorization:**
+- `auto` - Colors when output is to terminal, plain text when redirected
+- `always` - Force colored output regardless of destination
+- `never` - Disable colored output completely
 
 ## API Endpoints
 
@@ -126,7 +158,7 @@ curl -X POST http://localhost:8080/stream \
 ### Analyze Media File
 ```bash
 # URL-encode the media URL for the path parameter
-curl http://localhost:8080/analyze/https%3A//example.com/video.mp4
+curl http://localhost:8080/analyze/https%3A//commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
 ```
 
 ### Create Custom Pipeline
@@ -144,6 +176,31 @@ curl -X POST http://localhost:8080/pipelines \
 curl http://localhost:8080/samples
 ```
 
+## Testing
+
+The project includes comprehensive integration tests that verify end-to-end HTTP functionality:
+
+```bash
+# Run all tests
+cargo test
+
+# Run only integration tests
+cargo test --test integration_test
+
+# Run specific test with output
+cargo test test_analyze_endpoint_integration -- --nocapture
+
+# Run tests sequentially (cleaner output)
+cargo test -- --test-threads=1
+```
+
+**Test Features:**
+- Automatic server lifecycle management
+- Clean output with server log capture
+- DRY test infrastructure with helper functions
+- Cross-platform compatibility
+- Error scenario coverage
+
 ## GStreamer Integration
 
 The service demonstrates several key GStreamer concepts:
@@ -155,6 +212,8 @@ The service demonstrates several key GStreamer concepts:
 **Error Handling**: GStreamer errors are properly captured and returned as structured API responses.
 
 **State Management**: Pipeline states (Created, Playing, Paused, Stopped, Error) are tracked and exposed through the API.
+
+**Media Discovery**: Real media analysis using GStreamer's discovery capabilities with proper timeout and error handling.
 
 ## Sample Pipelines
 
@@ -199,19 +258,29 @@ Common error scenarios include:
 RUST_LOG=info cargo run
 
 # Run on custom port with logging
-RUST_LOG=debug cargo run -- --port 3000
+RUST_LOG=debug cargo run -- --port 3000 --color always
 ```
 
-**Run tests:**
+**Development workflow:**
 ```bash
-cargo test
-```
-
-**Check code quality:**
-```bash
+# Check code quality
 cargo clippy
+
+# Format code
 cargo fmt
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Clean builds
+cargo clean && cargo build
 ```
+
+**CI/CD Ready:**
+- Integration tests suitable for automated pipelines
+- Clean test output management
+- Cross-platform compatibility
+- Proper process cleanup
 
 ## Technology Stack
 
@@ -221,6 +290,17 @@ cargo fmt
 - **Tokio** - Async runtime for concurrent request handling
 - **Serde** - Serialization framework for JSON API responses
 - **Tracing** - Structured logging and observability
+- **Clap** - Command-line argument parsing with derive macros
+- **Reqwest** - HTTP client for integration testing
+
+## Professional Features
+
+- **EMBP Architecture** - Clean module boundaries and explicit APIs
+- **Signal Handling** - Graceful shutdown with Ctrl-C support
+- **Smart CLI** - Terminal-aware colorization and flexible configuration
+- **Integration Testing** - Professional test suite with clean output
+- **Error Management** - Comprehensive error handling and reporting
+- **Documentation** - Extensive inline documentation and examples
 
 ## Future Enhancements
 
@@ -237,4 +317,4 @@ This project is intended as a demonstration of Rust and GStreamer integration pa
 
 ---
 
-**Note**: This service is designed as a portfolio demonstration of GStreamer and Rust capabilities. For production use, additional security, authentication, and resource management features would be required.
+**Note**: This service is designed as a portfolio demonstration of GStreamer and Rust capabilities, showcasing professional development practices including testing, CLI design, and clean architecture patterns.

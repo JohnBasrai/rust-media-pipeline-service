@@ -5,6 +5,31 @@ All notable changes to the Media Pipeline Service will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Smart CLI colorization** with `--color auto/always/never` option using terminal detection
+- **Professional HTTP integration tests** with comprehensive test coverage
+- **DRY test infrastructure** with automatic server lifecycle management
+- **File-level documentation** for integration test suite
+
+### Changed
+- **Improved test output management** - server logs captured and shown only on failure
+- **Streamlined codebase** by removing unused code and consolidating MediaInfo struct
+- **Enhanced CLI experience** with intelligent color detection for terminals vs pipes
+
+### Removed
+- Unused `PipelineService` struct and associated methods
+- Unused `quality` field from `ConvertRequest`
+- Unused `bitrate` field from `StreamRequest`
+- Hybrid library structure (`lib.rs`) - now pure binary application
+
+### Technical Improvements
+- Integration tests use reqwest for true HTTP testing
+- Automatic port allocation prevents test conflicts
+- Clean test output suitable for CI/CD pipelines
+- Proper process cleanup and error handling
+
 ## [0.1.0] - 2025-01-XX
 
 ### Added
@@ -39,13 +64,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Handling**: Structured error responses with detailed GStreamer error information
 - **Modular Pipeline Construction**: Programmatic pipeline building for common use cases
 
+#### CLI Features
+- **Command-line interface** with clap derive for argument parsing
+- **Configurable host and port** with sensible defaults
+- **Graceful shutdown** handling with Ctrl-C signal capture
+- **Smart colorization** with terminal detection
+
 #### Dependencies
 - **Core Framework**: Axum 0.7 for async HTTP handling
 - **Media Processing**: GStreamer 0.21 with app and video plugins
+- **CLI**: Clap 4.0 with derive features for argument parsing
 - **Serialization**: Serde 1.0 for JSON API responses
 - **Async Runtime**: Tokio 1.0 with full feature set
 - **Logging**: Tracing 0.1 with tracing-subscriber 0.3
-- **Utilities**: anyhow, chrono, uuid, urlencoding
+- **Testing**: Reqwest 0.11 for HTTP integration tests
+- **Utilities**: anyhow, chrono, uuid, urlencoding, is-terminal
 
 #### Sample Media Integration
 - Big Buck Bunny (Blender Foundation short film)
@@ -60,12 +93,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - URL encoding support for media analysis endpoints
 - Detailed API documentation with curl examples
 - Clean error propagation from GStreamer to HTTP responses
+- **Integration test suite** with automatic server management
+- **Cross-platform compatibility** avoiding binary path dependencies
 
 ### Technical Highlights
 - **Memory Safety**: Leverages Rust's ownership system for safe GStreamer integration
 - **Concurrent Processing**: Async/await pattern for handling multiple pipeline operations
 - **Type Safety**: Strong typing throughout the API with proper error handling
 - **Modular Design**: EMBP pattern enables clean refactoring and maintainability
+- **Professional Testing**: HTTP integration tests verify end-to-end functionality
+- **CI/CD Ready**: Clean test output and reliable process management
 
 ### Known Limitations
 - Pipeline execution is tracked but not actively managed (pipelines run to completion)
