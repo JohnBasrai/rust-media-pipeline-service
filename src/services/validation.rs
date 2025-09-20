@@ -1,7 +1,7 @@
 use gstreamer::prelude::*;
 use std::time::Duration;
 
-// Import sibling through super
+// Import from parent module
 use super::MediaInfo;
 
 pub fn validate_pipeline_string(pipeline_string: &str) -> Result<(), String> {

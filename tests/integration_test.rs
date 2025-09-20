@@ -1,47 +1,138 @@
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use axum::{routing::get, Router};
-use media_pipeline_service::{analyze_media, AppState}; // Specific imports instead of wildcard
+//! Integration tests for the Media Pipeline Service REST API
+//!
+//! These tests spawn actual server processes and make HTTP requests to verify
+//! end-to-end functionality. Each test runs on a separate port to avoid conflicts.
+//!
+//! ## Test Coverage
+//! - `/health` - Server health and GStreamer version info
+//! - `/samples` - Sample media listing functionality  
+//! - `/analyze/{url}` - Media analysis endpoint (success and error cases)
+//!
+//! ## Test Infrastructure
+//! - Uses reqwest for HTTP client functionality
+//! - Spawns server processes via `cargo run` with unique ports
+//! - Automatic server lifecycle management (startup, wait, cleanup)
+//! - DRY helpers for URL construction and server management
+//!
+//! ## Running Tests
+//! ```bash
+//! cargo test --test integration_test           # Run all integration tests
+//! cargo test test_health_endpoint              # Run specific test
+//! cargo test -- --nocapture                   # Show server output
+//! ```
+//!
+//! ## Cleanup
+//! If tests are interrupted and leave orphaned processes:
+//! ```bash
+//! pkill -f "media-pipeline-service.*--port 808[1-9]"
+//! ```
+
 use serde_json::Value;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use tower::ServiceExt; // for `oneshot`
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::time::Duration;
+use tokio::process::{Child, Command};
+use tokio::time::sleep;
+
+// Port allocation for tests
+static NEXT_PORT: AtomicU16 = AtomicU16::new(8081);
+
+fn get_test_port() -> u16 {
+    NEXT_PORT.fetch_add(1, Ordering::SeqCst)
+}
+
+// Macro for URL construction
+macro_rules! endpoint_url {
+    ($base:expr, $path:expr) => {
+        format!("{}/{}", $base, $path)
+    };
+    ($base:expr, $path:expr, $param:expr) => {
+        format!("{}/{}/{}", $base, $path, $param)
+    };
+}
+
+// Helper struct to manage test server lifecycle
+struct TestServer {
+    process: Child,
+    base_url: String,
+    port: u16,
+}
+
+impl TestServer {
+    async fn start() -> Self {
+        let port = get_test_port();
+        let base_url = format!("http://localhost:{}", port);
+
+        // Use pre-built binary for faster, cleaner testing
+        let process = Command::new("cargo")
+            .args(&["run", "--", "--port", &port.to_string(), "--color", "never"])
+            .stdout(std::process::Stdio::piped()) // Capture for debugging
+            .stderr(std::process::Stdio::piped()) // Capture for debugging
+            .spawn()
+            .expect("Failed to start server - ensure 'cargo build' has been run");
+
+        let pid = process.id().expect("Failed to get process ID");
+
+        // Wait for server to start
+        let client = reqwest::Client::new();
+        let timeout = Duration::from_secs(10);
+        let start = std::time::Instant::now();
+
+        while start.elapsed() < timeout {
+            if let Ok(response) = client.get(&endpoint_url!(base_url, "health")).send().await {
+                if response.status().is_success() {
+                    println!("✓ Test server started: PID {} on port {}", pid, port);
+                    return TestServer {
+                        process,
+                        base_url,
+                        port,
+                    };
+                }
+            }
+            sleep(Duration::from_millis(100)).await;
+        }
+
+        // If startup failed, dump server output for debugging
+        if let Ok(output) = process.wait_with_output().await {
+            eprintln!("❌ Server startup failed on port {}:", port);
+            eprintln!("STDOUT: {}", String::from_utf8_lossy(&output.stdout));
+            eprintln!("STDERR: {}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        panic!("Server failed to start within 10 seconds on port {}", port);
+    }
+
+    async fn shutdown(mut self) {
+        if let Err(e) = self.process.kill().await {
+            eprintln!(
+                "Warning: Failed to kill server on port {}: {}",
+                self.port, e
+            );
+        }
+    }
+}
 
 #[tokio::test]
-async fn test_analyze_endpoint_success() {
+async fn test_analyze_endpoint_integration() {
     // ---
-    // Initialize GStreamer for the test
-    gstreamer::init().unwrap();
+    let server = TestServer::start().await;
+    let client = reqwest::Client::new();
 
-    // Create test app state
-    let app_state: AppState = Arc::new(Mutex::new(HashMap::new()));
-
-    // Build the app (same as in main.rs)
-    let app = Router::new()
-        .route("/analyze/*url", get(analyze_media))
-        .with_state(app_state);
-
-    // Test URL - use a simple, reliable public domain video
-    let test_url = "https://archive.org/download/night-15441/night-15441.mp4";
+    // Test successful analysis
+    let test_url =
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
     let encoded_url = urlencoding::encode(test_url);
 
-    // Create request
-    let request = Request::builder()
-        .uri(format!("/analyze/{}", encoded_url))
-        .body(Body::empty())
-        .unwrap();
-
-    // Send request
-    let response = app.oneshot(request).await.unwrap();
+    let response = client
+        .get(&endpoint_url!(server.base_url, "analyze", encoded_url))
+        .send()
+        .await
+        .expect("Failed to send request");
 
     // Verify response status
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), 200);
 
-    // Extract and verify response body
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    // Verify response content
+    let json: Value = response.json().await.expect("Failed to parse JSON");
 
     // Verify required fields are present
     assert!(json.get("url").is_some());
@@ -59,57 +150,87 @@ async fn test_analyze_endpoint_success() {
     // Verify timestamp is valid ISO format
     let timestamp = json["analysis_timestamp"].as_str().unwrap();
     assert!(chrono::DateTime::parse_from_rfc3339(timestamp).is_ok());
-}
 
-#[tokio::test]
-async fn test_analyze_endpoint_invalid_url() {
     // ---
-    // Initialize GStreamer for the test
-    gstreamer::init().unwrap();
-
-    // Create test app state
-    let app_state: AppState = Arc::new(Mutex::new(HashMap::new()));
-
-    // Build the app
-    let app = Router::new()
-        .route("/analyze/*url", get(analyze_media))
-        .with_state(app_state);
-
-    // Test with invalid URL
-    let invalid_url = "not-a-valid-url";
-    let encoded_url = urlencoding::encode(invalid_url);
-
-    // Create request
-    let request = Request::builder()
-        .uri(format!("/analyze/{}", encoded_url))
-        .body(Body::empty())
-        .unwrap();
-
-    // Send request
-    let response = app.oneshot(request).await.unwrap();
-
-    // Should return error status
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-
-    // Extract and verify error response
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    // Test error case - invalid URL
+    let invalid_response = client
+        .get(&endpoint_url!(
+            server.base_url,
+            "analyze",
+            "not-a-valid-url"
+        ))
+        .send()
         .await
-        .unwrap();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+        .expect("Failed to send request");
 
-    // Verify error structure
-    assert!(json.get("error").is_some());
-    assert_eq!(json["error"].as_str().unwrap(), "Failed to analyze media");
+    assert_eq!(invalid_response.status(), 422);
+
+    let error_json: Value = invalid_response
+        .json()
+        .await
+        .expect("Failed to parse error JSON");
+    assert!(error_json.get("error").is_some());
+    assert_eq!(
+        error_json["error"].as_str().unwrap(),
+        "Failed to analyze media"
+    );
+
+    // ---
+    server.shutdown().await;
 }
 
 #[tokio::test]
-async fn test_analyze_endpoint_url_decoding() {
+async fn test_health_endpoint() {
     // ---
-    // Test that URL decoding works correctly
-    let test_url = "https://example.com/path with spaces/file.mp4";
-    let encoded_url = urlencoding::encode(test_url);
+    let server = TestServer::start().await;
+    let client = reqwest::Client::new();
 
-    // This tests the decoding logic without hitting the network
-    let decoded = urlencoding::decode(&encoded_url).unwrap();
-    assert_eq!(decoded.as_ref(), test_url);
+    // Test health endpoint
+    let response = client
+        .get(&endpoint_url!(server.base_url, "health"))
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert_eq!(response.status(), 200);
+
+    let json: Value = response.json().await.expect("Failed to parse JSON");
+    assert_eq!(json["status"].as_str().unwrap(), "healthy");
+    assert!(json.get("gstreamer_version").is_some());
+    assert!(json.get("endpoints").is_some());
+
+    // ---
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn test_samples_endpoint() {
+    // ---
+    let server = TestServer::start().await;
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(&endpoint_url!(server.base_url, "samples"))
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert_eq!(response.status(), 200);
+
+    let json: Value = response.json().await.expect("Failed to parse JSON");
+    let samples = json.as_array().expect("Expected array of samples");
+
+    // Should have at least one sample
+    assert!(!samples.is_empty());
+
+    // Each sample should have required fields
+    for sample in samples {
+        assert!(sample.get("name").is_some());
+        assert!(sample.get("url").is_some());
+        assert!(sample.get("media_type").is_some());
+        assert!(sample.get("description").is_some());
+    }
+
+    // ---
+    server.shutdown().await;
 }

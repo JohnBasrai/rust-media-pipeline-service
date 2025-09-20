@@ -9,8 +9,7 @@ pub struct CreatePipelineRequest {
 #[derive(Debug, Deserialize)]
 pub struct ConvertRequest {
     pub source_url: String,
-    pub output_format: String,   // "webm", "mp4", "avi"
-    pub quality: Option<String>, // "high", "medium", "low"
+    pub output_format: String, // "webm", "mp4", "avi"
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,6 +23,5 @@ pub struct ThumbnailRequest {
 #[derive(Debug, Deserialize)]
 pub struct StreamRequest {
     pub source_url: String,
-    pub stream_type: String,     // "hls", "dash", "rtmp"
-    pub bitrate: Option<String>, // "1000k", "2000k", etc.
+    pub stream_type: String, // "hls", "dash", "rtmp"
 }

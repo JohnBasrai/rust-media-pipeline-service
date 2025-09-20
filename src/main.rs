@@ -7,7 +7,7 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
@@ -30,19 +30,12 @@ use handlers::{
     AppState,
 };
 
-// Public exports (if this were a library crate)
-pub use models::{
-    // ---
-    ConvertRequest,
-    ConvertResponse,
-    PipelineInfo,
-    PipelineState,
-    StreamRequest,
-    StreamResponse,
-    ThumbnailRequest,
-    ThumbnailResponse,
-};
-pub use services::PipelineService;
+#[derive(Clone, Debug, ValueEnum)]
+enum ColorWhen {
+    Auto,
+    Always,
+    Never,
+}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -55,6 +48,10 @@ struct Cli {
     /// Host address to bind the server to  
     #[arg(long, default_value = "0.0.0.0")]
     host: String,
+
+    /// Coloring
+    #[arg(long, value_enum, default_value_t = ColorWhen::Auto)]
+    color: ColorWhen,
 }
 
 #[tokio::main]
@@ -66,8 +63,17 @@ async fn main() -> anyhow::Result<()> {
 
     // ---
 
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+    // Initialize tracing with smart colorization
+    let use_color = match cli.color {
+        ColorWhen::Always => true,
+        ColorWhen::Never => false,
+        ColorWhen::Auto => {
+            // Check if stdout is a terminal and not being redirected
+            std::io::IsTerminal::is_terminal(&std::io::stdout())
+        }
+    };
+
+    tracing_subscriber::fmt().with_ansi(use_color).init();
 
     // Initialize GStreamer
     gstreamer::init()?;
