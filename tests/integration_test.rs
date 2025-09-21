@@ -53,11 +53,14 @@ macro_rules! endpoint_url {
 // Helper struct to manage test server lifecycle
 struct TestServer {
     process: Child,
+    client: reqwest::Client,
     base_url: String,
     port: u16,
 }
 
 impl TestServer {
+    // ---
+
     async fn start() -> Self {
         let port = get_test_port();
         let base_url = format!("http://localhost:{port}");
@@ -83,6 +86,7 @@ impl TestServer {
                     println!("✓ Test server started: PID {pid} on port {port}");
                     return TestServer {
                         process,
+                        client,
                         base_url,
                         port,
                     };
@@ -109,6 +113,153 @@ impl TestServer {
             );
         }
     }
+} // impl TestServer
+
+#[tokio::test]
+async fn test_pipeline_lifecycle_integration() {
+    // ---
+
+    let server = TestServer::start().await;
+
+    // Create a custom pipeline
+    let create_request = serde_json::json!({
+        "description": "Test audio extraction pipeline",
+        "pipeline": "fakesrc ! fakesink"
+    });
+
+    let create_response = server
+        .client
+        .post(&format!("{}/pipelines", server.base_url))
+        .header("Content-Type", "application/json")
+        .json(&create_request)
+        .send()
+        .await
+        .expect("Failed to create pipeline");
+
+    assert_eq!(create_response.status(), 200);
+
+    let pipeline_data: serde_json::Value = create_response
+        .json()
+        .await
+        .expect("Failed to parse create response");
+
+    let pipeline_id = pipeline_data["id"].as_str().unwrap();
+
+    // Get specific pipeline
+    let get_response = server
+        .client
+        .get(&format!("{}/pipelines/{}", server.base_url, pipeline_id))
+        .send()
+        .await
+        .expect("Failed to get pipeline");
+
+    assert_eq!(get_response.status(), 200);
+
+    // List all pipelines and verify ours is there
+    let list_response = server
+        .client
+        .get(&format!("{}/pipelines", server.base_url))
+        .send()
+        .await
+        .expect("Failed to list pipelines");
+
+    assert_eq!(list_response.status(), 200);
+
+    let pipelines: serde_json::Value = list_response
+        .json()
+        .await
+        .expect("Failed to parse list response");
+
+    assert!(pipelines
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|p| p["id"] == pipeline_id));
+
+    // Stop the pipeline
+    let delete_response = server
+        .client
+        .delete(&format!("{}/pipelines/{}", server.base_url, pipeline_id))
+        .send()
+        .await
+        .expect("Failed to stop pipeline");
+
+    assert_eq!(delete_response.status(), 200);
+
+    // Verify pipeline is now stopped
+    let final_get_response = server
+        .client
+        .get(&format!("{}/pipelines/{}", server.base_url, pipeline_id))
+        .send()
+        .await
+        .expect("Failed to get stopped pipeline");
+
+    let stopped_pipeline: serde_json::Value = final_get_response
+        .json()
+        .await
+        .expect("Failed to parse stopped pipeline");
+
+    assert_eq!(stopped_pipeline["state"], "Stopped");
+}
+
+#[tokio::test]
+async fn test_convert_media_integration() {
+    // ---
+
+    let server = TestServer::start().await;
+
+    let convert_request = serde_json::json!({
+        "source_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        "output_format": "webm"
+    });
+
+    let response = server
+        .client
+        .post(&format!("{}/convert", server.base_url))
+        .header("Content-Type", "application/json")
+        .json(&convert_request)
+        .send()
+        .await
+        .expect("Failed to send convert request");
+
+    assert_eq!(response.status(), 200);
+
+    let convert_response: serde_json::Value = response
+        .json()
+        .await
+        .expect("Failed to parse convert response");
+
+    // Verify response structure
+    assert!(convert_response["pipeline_id"].is_string());
+    assert_eq!(convert_response["status"], "created");
+    assert!(convert_response["message"]
+        .as_str()
+        .unwrap()
+        .contains("webm"));
+    assert!(convert_response["estimated_duration"].is_string());
+
+    // Verify the pipeline was created and can be retrieved
+    let pipeline_id = convert_response["pipeline_id"].as_str().unwrap();
+    let pipeline_response = server
+        .client
+        .get(&format!("{}/pipelines/{}", server.base_url, pipeline_id))
+        .send()
+        .await
+        .expect("Failed to get pipeline");
+
+    assert_eq!(pipeline_response.status(), 200);
+
+    let pipeline_data: serde_json::Value = pipeline_response
+        .json()
+        .await
+        .expect("Failed to parse pipeline response");
+
+    assert_eq!(pipeline_data["id"], pipeline_id);
+    assert_eq!(pipeline_data["state"], "Created");
+    assert!(pipeline_data["description"]
+        .as_str()
+        .unwrap()
+        .contains("webm"));
 }
 
 #[tokio::test]
