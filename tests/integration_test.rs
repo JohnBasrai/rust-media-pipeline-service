@@ -62,12 +62,23 @@ impl TestServer {
     // ---
 
     async fn start() -> Self {
+        // ---
+
         let port = get_test_port();
         let base_url = format!("http://localhost:{port}");
 
         // Use pre-built binary for faster, cleaner testing
         let process = Command::new("cargo")
-            .args(["run", "--", "--port", &port.to_string(), "--color", "never"])
+            .args([
+                "run",
+                "--",
+                "--host",
+                "localhost",
+                "--port",
+                &port.to_string(),
+                "--color",
+                "never",
+            ])
             .stdout(std::process::Stdio::piped()) // Capture for debugging
             .stderr(std::process::Stdio::piped()) // Capture for debugging
             .spawn()
@@ -329,8 +340,14 @@ async fn test_analyze_endpoint_integration() {
 #[tokio::test]
 async fn test_health_endpoint() {
     // ---
+    let fname = "test_health_endpoint";
+
+    println!("{fname}: Calling TestServer::start().await");
     let server = TestServer::start().await;
+
+    println!("{fname}: Calling reqwest::Client::new()");
     let client = reqwest::Client::new();
+    println!("{fname}: Doing client.send");
 
     // Test health endpoint
     let response = client
