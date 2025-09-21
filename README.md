@@ -17,23 +17,22 @@ A REST API service for media processing using GStreamer and Rust, demonstrating 
 
 This project implements the **Explicit Module Boundary Pattern (EMBP)** for clean, maintainable Rust code. This pattern aligns with interface design principles discussed in Jon Gjengset's _Rust for Rustaceans_ (Chapter 3: _Designing Interfaces_), particularly around controlling API boundaries and maintaining clear separation of concerns. For a detailed explanation of EMBP principles and implementation, see the [EMBP documentation](https://github.com/JohnBasrai/architecture-patterns/blob/main/rust/embp.md).
 
-
 ```
 src/
 ├── handlers/          # HTTP endpoint handlers
-│   ├── mod.rs         # Gateway controlling public handler API
-│   ├── media.rs       # Media processing endpoints
-│   ├── pipeline.rs    # Pipeline CRUD operations
-│   └── samples.rs     # Sample data and health checks
+│   ├── mod.rs         #   Gateway controlling public handler API
+│   ├── media.rs       #   Media processing endpoints
+│   ├── pipeline.rs    #   Pipeline CRUD operations
+│   └── samples.rs     #   Sample data and health checks
 ├── models/            # Data structures and DTOs
-│   ├── mod.rs         # Gateway controlling public model API
-│   ├── pipeline.rs    # Pipeline state management
-│   ├── requests.rs    # Request DTOs
-│   └── responses.rs   # Response DTOs
+│   ├── mod.rs         #   Gateway controlling public model API
+│   ├── pipeline.rs    #   Pipeline state management
+│   ├── requests.rs    #   Request DTOs
+│   └── responses.rs   #   Response DTOs
 ├── services/          # Business logic and GStreamer integration
-│   ├── mod.rs         # Gateway controlling public service API
-│   └── validation.rs  # Pipeline validation and utilities
-├── main.rs            # Application entry point and routing
+│   ├── mod.rs         #   Gateway controlling public service API
+│   └── validation.rs  #   Pipeline validation and utilities
+├── main.rs            #   Application entry point and routing
 └── tests/             # Integration test suite
     └── integration_test.rs  # HTTP API testing
 ```
@@ -215,8 +214,10 @@ The project includes automated testing via GitHub Actions:
 - **Cross-platform testing** on Ubuntu with GStreamer dependencies
 - **Code formatting** verification with `cargo fmt --check`
 - **Linting** with `cargo clippy` treating warnings as errors
-- **Full test suite** including both unit and integration tests
+- **Unit tests** for core functionality validation
 - **Release builds** to verify production readiness
+
+*Note: Integration tests are currently disabled in CI due to hanging issues on GitHub Actions runners, but can be run locally with `cargo test --test integration_test`.*
 
 ## Local Quality Checks
 
