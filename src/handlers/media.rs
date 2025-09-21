@@ -26,10 +26,9 @@
 //! that distinguish between client errors (validation failures) and server
 //! errors (processing issues), enabling appropriate client retry logic.
 
+use super::AppState;
 use axum::{extract::State, http::StatusCode, response::Json};
 use chrono::Utc;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -46,9 +45,6 @@ use crate::services::{
 };
 
 // ---
-
-// Type alias for shared state
-pub type AppState = Arc<Mutex<HashMap<String, PipelineInfo>>>;
 
 /// Initiates media format conversion between supported video formats.
 ///

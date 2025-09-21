@@ -30,8 +30,6 @@ use axum::{
     response::Json,
 };
 use chrono::Utc;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -44,7 +42,7 @@ use crate::services::{get_media_info, validate_pipeline_string};
 // ---
 
 // Type alias for shared state
-type AppState = Arc<Mutex<HashMap<String, PipelineInfo>>>;
+use super::AppState;
 
 /// Creates a new custom GStreamer pipeline from user-provided configuration.
 ///

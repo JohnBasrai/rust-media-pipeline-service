@@ -41,6 +41,17 @@ mod samples;
 // ---
 
 // Public exports - this defines the entire public handlers API
-pub use media::{convert_media, create_stream, generate_thumbnail, AppState};
+pub use media::{convert_media, create_stream, generate_thumbnail};
 pub use pipeline::{analyze_media, create_pipeline, get_pipeline, list_pipelines, stop_pipeline};
 pub use samples::{health_check, list_sample_media};
+
+// Import stuff needed to define AppState below
+use crate::models::PipelineInfo;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+/// Shared application state for pipeline tracking across all handlers.
+///
+/// Provides thread-safe access to the pipeline registry, enabling
+/// coordinated management of pipeline lifecycles across all HTTP endpoints.
+pub type AppState = Arc<Mutex<HashMap<String, PipelineInfo>>>;
