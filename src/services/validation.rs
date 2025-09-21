@@ -27,8 +27,7 @@ pub fn get_media_info(url: &str) -> anyhow::Result<MediaInfo> {
 
     // Create a discovery pipeline - we'll probe the media without fully decoding
     let pipeline_string = format!(
-        "souphttpsrc location={} ! typefind ! identity signal-handoffs=false ! fakesink sync=false",
-        url
+        "souphttpsrc location={url} ! typefind ! identity signal-handoffs=false ! fakesink sync=false"
     );
 
     let pipeline = gstreamer::parse_launch(&pipeline_string)?
@@ -104,20 +103,18 @@ pub fn get_media_info(url: &str) -> anyhow::Result<MediaInfo> {
 
     // Alternative: try to find any video pad in the pipeline and get its caps
     if media_info.width.is_none() || media_info.height.is_none() {
-        for pad_result in pipeline.iterate_pads() {
-            if let Ok(pad) = pad_result {
-                if let Some(caps) = pad.current_caps() {
-                    for i in 0..caps.size() {
-                        if let Some(structure) = caps.structure(i) {
-                            if structure.name().starts_with("video/") {
-                                if let Ok(width) = structure.get::<i32>("width") {
-                                    media_info.width = Some(width as u32);
-                                }
-                                if let Ok(height) = structure.get::<i32>("height") {
-                                    media_info.height = Some(height as u32);
-                                }
-                                break;
+        for pad_result in pipeline.iterate_pads().into_iter().flatten() {
+            if let Some(caps) = pad_result.current_caps() {
+                for i in 0..caps.size() {
+                    if let Some(structure) = caps.structure(i) {
+                        if structure.name().starts_with("video/") {
+                            if let Ok(width) = structure.get::<i32>("width") {
+                                media_info.width = Some(width as u32);
                             }
+                            if let Ok(height) = structure.get::<i32>("height") {
+                                media_info.height = Some(height as u32);
+                            }
+                            break;
                         }
                     }
                 }
@@ -152,18 +149,15 @@ pub fn create_conversion_pipeline(
 ) -> Result<String, String> {
     match output_format {
         "webm" => Ok(format!(
-            "souphttpsrc location={} ! decodebin ! videoconvert ! vp8enc ! webmmux ! filesink location={}",
-            source_url, output_path
+            "souphttpsrc location={source_url} ! decodebin ! videoconvert ! vp8enc ! webmmux ! filesink location={output_path}"
         )),
         "mp4" => Ok(format!(
-            "souphttpsrc location={} ! decodebin ! videoconvert ! x264enc ! mp4mux ! filesink location={}",
-            source_url, output_path
+            "souphttpsrc location={source_url} ! decodebin ! videoconvert ! x264enc ! mp4mux ! filesink location={output_path}"
         )),
         "avi" => Ok(format!(
-            "souphttpsrc location={} ! decodebin ! videoconvert ! x264enc ! avimux ! filesink location={}",
-            source_url, output_path
+            "souphttpsrc location={source_url} ! decodebin ! videoconvert ! x264enc ! avimux ! filesink location={output_path}"
         )),
-        _ => Err(format!("Unsupported output format: {}", output_format)),
+        _ => Err(format!("Unsupported output format: {output_format}")),
     }
 }
 
@@ -175,15 +169,13 @@ pub fn create_thumbnail_pipeline(
     _timestamp: &str,
 ) -> String {
     format!(
-        "souphttpsrc location={} ! decodebin ! videoconvert ! videoscale ! video/x-raw,width={},height={} ! pngenc ! filesink location={}",
-        source_url, width, height, output_path
+        "souphttpsrc location={source_url} ! decodebin ! videoconvert ! videoscale ! video/x-raw,width={width},height={height} ! pngenc ! filesink location={output_path}"
     )
 }
 
 pub fn create_hls_stream_pipeline(source_url: &str, output_dir: &str) -> String {
     format!(
-        "souphttpsrc location={} ! decodebin ! videoconvert ! x264enc bitrate=1000 ! mpegtsmux ! hlssink location={}/segment_%05d.ts playlist-location={}/playlist.m3u8 max-files=10",
-        source_url, output_dir, output_dir
+        "souphttpsrc location={source_url} ! decodebin ! videoconvert ! x264enc bitrate=1000 ! mpegtsmux ! hlssink location={output_dir}/segment_%05d.ts playlist-location={output_dir}/playlist.m3u8 max-files=10"
     )
 }
 
@@ -207,17 +199,9 @@ mod tests {
         // ---
         ensure_gstreamer_init();
 
-        // Basic valid pipeline
-        assert!(validate_pipeline_string("videotestsrc ! autovideosink").is_ok());
-
-        // Multiple elements
-        assert!(validate_pipeline_string("videotestsrc ! videoconvert ! autovideosink").is_ok());
-
-        // With properties
-        assert!(validate_pipeline_string("videotestsrc pattern=ball ! autovideosink").is_ok());
-
-        // Audio pipeline
-        assert!(validate_pipeline_string("audiotestsrc ! autoaudiosink").is_ok());
+        // Use basic elements more likely to be available on GitLab runner
+        assert!(validate_pipeline_string("fakesrc ! fakesink").is_ok());
+        assert!(validate_pipeline_string("fakesrc ! identity ! fakesink").is_ok());
     }
 
     #[test]

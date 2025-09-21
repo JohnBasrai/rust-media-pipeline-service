@@ -15,11 +15,12 @@ A REST API service for media processing using GStreamer and Rust, demonstrating 
 
 ## Architecture
 
-This project implements the **Explicit Module Boundary Pattern (EMBP)** for clean, maintainable Rust code:
+This project implements the **Explicit Module Boundary Pattern (EMBP)** for clean, maintainable Rust code. This pattern aligns with interface design principles discussed in Jon Gjengset's _Rust for Rustaceans_ (Chapter 3: _Designing Interfaces_), particularly around controlling API boundaries and maintaining clear separation of concerns. For a detailed explanation of EMBP principles and implementation, see the [EMBP documentation](https://github.com/JohnBasrai/architecture-patterns/blob/main/rust/embp.md).
+
 
 ```
 src/
-├── handlers/           # HTTP endpoint handlers
+├── handlers/          # HTTP endpoint handlers
 │   ├── mod.rs         # Gateway controlling public handler API
 │   ├── media.rs       # Media processing endpoints
 │   ├── pipeline.rs    # Pipeline CRUD operations
@@ -32,8 +33,8 @@ src/
 ├── services/          # Business logic and GStreamer integration
 │   ├── mod.rs         # Gateway controlling public service API
 │   └── validation.rs  # Pipeline validation and utilities
-├── main.rs           # Application entry point and routing
-└── tests/            # Integration test suite
+├── main.rs            # Application entry point and routing
+└── tests/             # Integration test suite
     └── integration_test.rs  # HTTP API testing
 ```
 
@@ -79,7 +80,7 @@ src/
    # Check health
    curl http://localhost:8080/health
    
-   # Run integration tests
+   # Run all tests
    cargo test
    ```
 
@@ -178,11 +179,14 @@ curl http://localhost:8080/samples
 
 ## Testing
 
-The project includes comprehensive integration tests that verify end-to-end HTTP functionality:
+The project includes comprehensive testing that verifies functionality at multiple levels:
 
 ```bash
-# Run all tests
+# Run all tests (unit + integration)
 cargo test
+
+# Run only unit tests
+cargo test --lib
 
 # Run only integration tests
 cargo test --test integration_test
@@ -195,11 +199,39 @@ cargo test -- --test-threads=1
 ```
 
 **Test Features:**
+- **Unit tests** for pipeline validation and construction functions
+- **Integration tests** for end-to-end HTTP functionality
 - Automatic server lifecycle management
 - Clean output with server log capture
 - DRY test infrastructure with helper functions
 - Cross-platform compatibility
 - Error scenario coverage
+
+### CI/CD Pipeline
+
+The project includes automated testing via GitHub Actions:
+
+- **Automated quality checks** on every push and pull request
+- **Cross-platform testing** on Ubuntu with GStreamer dependencies
+- **Code formatting** verification with `cargo fmt --check`
+- **Linting** with `cargo clippy` treating warnings as errors
+- **Full test suite** including both unit and integration tests
+- **Release builds** to verify production readiness
+
+## Local Quality Checks
+
+Run the same checks as CI locally:
+
+```bash
+# Full quality check pipeline
+cargo fmt --check && cargo clippy -- -D warnings && cargo test
+
+# Individual checks
+cargo fmt --check     # Verify formatting
+cargo clippy         # Check for lints
+cargo test          # Run all tests
+cargo build --release  # Verify release build
+```
 
 ## GStreamer Integration
 
@@ -298,7 +330,8 @@ cargo clean && cargo build
 - **EMBP Architecture** - Clean module boundaries and explicit APIs
 - **Signal Handling** - Graceful shutdown with Ctrl-C support
 - **Smart CLI** - Terminal-aware colorization and flexible configuration
-- **Integration Testing** - Professional test suite with clean output
+- **Comprehensive Testing** - Professional test suite with unit and integration tests
+- **CI/CD Pipeline** - Automated quality checks and cross-platform testing
 - **Error Management** - Comprehensive error handling and reporting
 - **Documentation** - Extensive inline documentation and examples
 
@@ -313,8 +346,8 @@ cargo clean && cargo build
 
 ## License
 
-This project is intended as a demonstration of Rust and GStreamer integration patterns.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 
-**Note**: This service is designed as a portfolio demonstration of GStreamer and Rust capabilities, showcasing professional development practices including testing, CLI design, and clean architecture patterns.
+**Note**: While this service demonstrates GStreamer and Rust integration patterns, it would require additional security, authentication, and resource management features for production deployment.

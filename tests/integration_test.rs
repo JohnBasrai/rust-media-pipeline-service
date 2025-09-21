@@ -60,11 +60,11 @@ struct TestServer {
 impl TestServer {
     async fn start() -> Self {
         let port = get_test_port();
-        let base_url = format!("http://localhost:{}", port);
+        let base_url = format!("http://localhost:{port}");
 
         // Use pre-built binary for faster, cleaner testing
         let process = Command::new("cargo")
-            .args(&["run", "--", "--port", &port.to_string(), "--color", "never"])
+            .args(["run", "--", "--port", &port.to_string(), "--color", "never"])
             .stdout(std::process::Stdio::piped()) // Capture for debugging
             .stderr(std::process::Stdio::piped()) // Capture for debugging
             .spawn()
@@ -78,9 +78,9 @@ impl TestServer {
         let start = std::time::Instant::now();
 
         while start.elapsed() < timeout {
-            if let Ok(response) = client.get(&endpoint_url!(base_url, "health")).send().await {
+            if let Ok(response) = client.get(endpoint_url!(base_url, "health")).send().await {
                 if response.status().is_success() {
-                    println!("✓ Test server started: PID {} on port {}", pid, port);
+                    println!("✓ Test server started: PID {pid} on port {port}");
                     return TestServer {
                         process,
                         base_url,
@@ -93,12 +93,12 @@ impl TestServer {
 
         // If startup failed, dump server output for debugging
         if let Ok(output) = process.wait_with_output().await {
-            eprintln!("❌ Server startup failed on port {}:", port);
+            eprintln!("❌ Server startup failed on port {port}:");
             eprintln!("STDOUT: {}", String::from_utf8_lossy(&output.stdout));
             eprintln!("STDERR: {}", String::from_utf8_lossy(&output.stderr));
         }
 
-        panic!("Server failed to start within 10 seconds on port {}", port);
+        panic!("Server failed to start within 10 seconds on port {port}");
     }
 
     async fn shutdown(mut self) {
@@ -123,7 +123,7 @@ async fn test_analyze_endpoint_integration() {
     let encoded_url = urlencoding::encode(test_url);
 
     let response = client
-        .get(&endpoint_url!(server.base_url, "analyze", encoded_url))
+        .get(endpoint_url!(server.base_url, "analyze", encoded_url))
         .send()
         .await
         .expect("Failed to send request");
@@ -154,11 +154,7 @@ async fn test_analyze_endpoint_integration() {
     // ---
     // Test error case - invalid URL
     let invalid_response = client
-        .get(&endpoint_url!(
-            server.base_url,
-            "analyze",
-            "not-a-valid-url"
-        ))
+        .get(endpoint_url!(server.base_url, "analyze", "not-a-valid-url"))
         .send()
         .await
         .expect("Failed to send request");
@@ -187,7 +183,7 @@ async fn test_health_endpoint() {
 
     // Test health endpoint
     let response = client
-        .get(&endpoint_url!(server.base_url, "health"))
+        .get(endpoint_url!(server.base_url, "health"))
         .send()
         .await
         .expect("Failed to send request");
@@ -210,7 +206,7 @@ async fn test_samples_endpoint() {
     let client = reqwest::Client::new();
 
     let response = client
-        .get(&endpoint_url!(server.base_url, "samples"))
+        .get(endpoint_url!(server.base_url, "samples"))
         .send()
         .await
         .expect("Failed to send request");

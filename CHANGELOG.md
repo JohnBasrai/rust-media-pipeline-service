@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CI/CD pipeline** with GitHub Actions for automated testing and quality checks
 - **Smart CLI colorization** with `--color auto/always/never` option using terminal detection
 - **Professional HTTP integration tests** with comprehensive test coverage
+- **Unit tests** for pipeline validation and construction functions
 - **DRY test infrastructure** with automatic server lifecycle management
 - **File-level documentation** for integration test suite
 
@@ -25,12 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hybrid library structure (`lib.rs`) - now pure binary application
 
 ### Technical Improvements
+- **Automated cross-platform testing** with GStreamer dependencies in Ubuntu environment
+- **Code quality automation** with formatting and linting checks treating warnings as errors
+- **Comprehensive test coverage** with both unit and integration tests
 - Integration tests use reqwest for true HTTP testing
 - Automatic port allocation prevents test conflicts
 - Clean test output suitable for CI/CD pipelines
 - Proper process cleanup and error handling
+- **Clippy code quality improvements** and modern formatting standards
 
-## [0.1.0] - 2025-01-XX
+## [0.1.0] - 2025-09-20
 
 ### Added
 - Initial release of Media Pipeline Service
