@@ -7,34 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-09-21
+
 ### Added
+- **Comprehensive documentation** - File-level and method documentation across entire codebase
+- **Integration test suite** - HTTP endpoint testing for core functionality
+  - Media format conversion testing
+  - Pipeline lifecycle management (create/read/list/delete)
+  - Media analysis endpoint validation
+  - Sample media and health check verification
 - **CI/CD pipeline** with GitHub Actions for automated testing and quality checks
 - **Smart CLI colorization** with `--color auto/always/never` option using terminal detection
-- **Professional HTTP integration tests** with comprehensive test coverage
-- **Unit tests** for pipeline validation and construction functions
-- **DRY test infrastructure** with automatic server lifecycle management
-- **File-level documentation** for integration test suite
+- **Professional test infrastructure** with automatic server lifecycle management
+- **Features table** in README showing transparent test coverage status
+- **Branch protection rules** enforcing pull request workflow
 
 ### Changed
-- **Improved test output management** - server logs captured and shown only on failure
-- **Streamlined codebase** by removing unused code and consolidating MediaInfo struct
+- **Enhanced README** with comprehensive API documentation and usage examples
+- **Improved CI configuration** with dependency caching and optimized package installation
+- **Test output management** - server logs captured and shown only on failure
+- **Streamlined codebase** by removing unused dependencies identified by cargo machete
 - **Enhanced CLI experience** with intelligent color detection for terminals vs pipes
+- **Documentation architecture** implementing EMBP pattern explanations throughout
 
 ### Removed
+- **Unused dependencies**: `gstreamer-app`, `gstreamer-video`, `is-terminal`
 - Unused `PipelineService` struct and associated methods
 - Unused `quality` field from `ConvertRequest`
 - Unused `bitrate` field from `StreamRequest`
 - Hybrid library structure (`lib.rs`) - now pure binary application
 
 ### Technical Improvements
+- **Documentation coverage** - Comprehensive doc comments for all public APIs
+- **Test coverage reporting** - Clear visibility into tested vs untested features
 - **Automated cross-platform testing** with GStreamer dependencies in Ubuntu environment
 - **Code quality automation** with formatting and linting checks treating warnings as errors
-- **Comprehensive test coverage** with both unit and integration tests
+- **Dependency management** - Clean removal of unused crates for smaller build
 - Integration tests use reqwest for true HTTP testing
 - Automatic port allocation prevents test conflicts
 - Clean test output suitable for CI/CD pipelines
 - Proper process cleanup and error handling
 - **Clippy code quality improvements** and modern formatting standards
+
+### CI/CD Enhancements
+- **Dependency caching** for faster build times
+- **Integration test investigation** - documented CI environment limitations
+- **Branch protection** requiring pull requests and status checks
+- **Optimized package installation** skipping unnecessary documentation
+
+### Documentation Highlights
+- **EMBP architecture documentation** across all gateway modules
+- **Request/response examples** with realistic JSON samples
+- **Pipeline construction patterns** with GStreamer integration details
+- **Error handling strategies** and validation logic explanations
+- **API endpoint documentation** with curl examples and use cases
 
 ## [0.1.0] - 2025-09-20
 
@@ -78,13 +104,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Dependencies
 - **Core Framework**: Axum 0.7 for async HTTP handling
-- **Media Processing**: GStreamer 0.21 with app and video plugins
+- **Media Processing**: GStreamer 0.21 with core plugins
 - **CLI**: Clap 4.0 with derive features for argument parsing
 - **Serialization**: Serde 1.0 for JSON API responses
 - **Async Runtime**: Tokio 1.0 with full feature set
 - **Logging**: Tracing 0.1 with tracing-subscriber 0.3
 - **Testing**: Reqwest 0.11 for HTTP integration tests
-- **Utilities**: anyhow, chrono, uuid, urlencoding, is-terminal
+- **Utilities**: anyhow, chrono, uuid, urlencoding
 
 #### Sample Media Integration
 - Big Buck Bunny (Blender Foundation short film)
@@ -116,6 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - No authentication or rate limiting implemented
 - Limited to HTTP/HTTPS source URLs (no local file support)
 - Basic media info discovery (full GStreamer discoverer API not yet integrated)
+- Integration tests work locally but have CI environment limitations
 
 ### Future Considerations
 - Real-time pipeline status updates via WebSockets
