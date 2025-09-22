@@ -340,14 +340,8 @@ async fn test_analyze_endpoint_integration() {
 #[tokio::test]
 async fn test_health_endpoint() {
     // ---
-    let fname = "test_health_endpoint";
-
-    println!("{fname}: Calling TestServer::start().await");
     let server = TestServer::start().await;
-
-    println!("{fname}: Calling reqwest::Client::new()");
     let client = reqwest::Client::new();
-    println!("{fname}: Doing client.send");
 
     // Test health endpoint
     let response = client
