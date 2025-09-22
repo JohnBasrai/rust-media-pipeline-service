@@ -62,12 +62,23 @@ impl TestServer {
     // ---
 
     async fn start() -> Self {
+        // ---
+
         let port = get_test_port();
         let base_url = format!("http://localhost:{port}");
 
         // Use pre-built binary for faster, cleaner testing
         let process = Command::new("cargo")
-            .args(["run", "--", "--port", &port.to_string(), "--color", "never"])
+            .args([
+                "run",
+                "--",
+                "--host",
+                "localhost",
+                "--port",
+                &port.to_string(),
+                "--color",
+                "never",
+            ])
             .stdout(std::process::Stdio::piped()) // Capture for debugging
             .stderr(std::process::Stdio::piped()) // Capture for debugging
             .spawn()

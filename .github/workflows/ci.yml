@@ -16,10 +16,8 @@ jobs:
     - name: Install GStreamer
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
-
-    # - name: Install Rust
-    #   uses: dtolnay/rust-toolchain@stable
+        sudo apt-get install -y --no-install-recommends --no-install-suggests \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
@@ -32,8 +30,11 @@ jobs:
 
     - name: Run unit tests
       run: cargo test --quiet --bins
-      # Integration tests hanging on GitHub Actions runner
 
+    # Integration tests work locally but hang in CI due to environment restrictions
+    # - name: Run integration tests
+    #   run: cargo test --quiet --test integration_test -- --test-threads=1 --nocapture
+    #   timeout-minutes: 3
 
     - name: Build release
       run: cargo build --release --quiet

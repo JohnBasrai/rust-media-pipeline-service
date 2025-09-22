@@ -1,17 +1,19 @@
 # Media Pipeline Service
 
-A REST API service for media processing using GStreamer and Rust, demonstrating modern Rust architecture patterns and professional development practices.
+A REST API service for media processing using GStreamer and Rust, with tested implementations of format conversion, pipeline management, and media analysis, demonstrating modern architecture patterns.
 
 ## Features
 
-- **Media Format Conversion** - Convert videos between WebM, MP4, and AVI formats
-- **Thumbnail Generation** - Extract thumbnails from video content at specified timestamps
-- **HLS Streaming** - Create HTTP Live Streaming pipelines for real-time video delivery
-- **Pipeline Management** - Create, monitor, and control custom GStreamer pipelines
-- **Media Analysis** - Analyze media files to extract format, resolution, and metadata
-- **Built-in Samples** - Pre-configured sample media for testing and demonstration
-- **Professional CLI** - Command-line interface with smart colorization and flexible configuration
-- **Integration Testing** - Comprehensive HTTP test suite with clean output management
+| Feature                 | Test Coverage | Description |
+|-------------------------|---------------|-------------|
+| Media Format Conversion | ✅ Tested     | Convert videos between WebM, MP4, and AVI formats |
+| Thumbnail Generation    | Not tested    | Extract thumbnails from video content at specified timestamps |
+| HLS Streaming           | Not tested    | Create HTTP Live Streaming pipelines for real-time video delivery |
+| Pipeline Management     | ✅ Tested     | Create, monitor, and control custom GStreamer pipelines |
+| Media Analysis          | ✅ Tested     | Analyze media files to extract format, resolution, and metadata |
+| Built-in Samples        | ✅ Tested     | Pre-configured sample media for testing and demonstration |
+| Professional CLI        | Not tested    | Command-line interface with smart colorization and flexible configuration |
+| Integration Testing     | ✅ Tested     | Comprehensive HTTP test suite with clean output management |
 
 ## Architecture
 
@@ -217,7 +219,7 @@ The project includes automated testing via GitHub Actions:
 - **Unit tests** for core functionality validation
 - **Release builds** to verify production readiness
 
-*Note: Integration tests are currently disabled in CI due to hanging issues on GitHub Actions runners, but can be run locally with `cargo test --test integration_test`.*
+*Note: Integration tests are currently disabled in CI due to environment restrictions that prevent server binding in GitHub Actions runners. Integration tests pass locally and can be run with `cargo test --test integration_test`.*
 
 ## Local Quality Checks
 
