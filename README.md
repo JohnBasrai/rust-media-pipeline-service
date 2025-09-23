@@ -238,6 +238,14 @@ cargo build --release  # Verify release build
 
 ## GStreamer Integration
 
+This service demonstrates direct integration with the GStreamer multimedia framework through Rust FFI bindings. The application links to system GStreamer libraries (`libgstreamer-1.0.so`) and uses the gstreamer-rs crate for memory-safe access to GStreamer's C APIs.
+
+**Integration highlights:**
+- Direct library linking (not subprocess calls or external services)
+- Safe Rust wrappers around GStreamer's C API
+- Real pipeline construction and validation using GStreamer's parser
+- Access to GStreamer's extensive plugin ecosystem
+
 The service demonstrates several key GStreamer concepts:
 
 **Pipeline Validation**: All pipeline strings are validated before execution using `gstreamer::parse_launch()`.
